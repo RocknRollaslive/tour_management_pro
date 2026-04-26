@@ -1,56 +1,80 @@
 import streamlit as st
+import pandas as pd
+from datetime import datetime
 from supabase import create_client, Client
 
-# --- 1. DATABASE CONNECTION ---
-# This pulls the keys from your Streamlit Secrets
+# --- 1. CLOUD CONNECTION ---
 url: str = st.secrets["SUPABASE_URL"]
 key: str = st.secrets["SUPABASE_KEY"]
 supabase: Client = create_client(url, key)
 
-# --- 2. PAGE CONFIG ---
-st.set_page_config(page_title="Rock & Rolla's LIVE", layout="wide")
+# --- 2. THE DESIGN SYSTEM (From your streamlit.py) ---
+st.set_page_config(page_title="R&R LIVE", layout="centered", initial_sidebar_state="collapsed")
 
-# --- 3. SIDEBAR NAVIGATION ---
-st.sidebar.markdown(f"👤 **User:** Dylan")
-if url:
-    st.sidebar.success("Cloud Brain Connected")
+st.markdown('<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;700&display=swap" rel="stylesheet">', unsafe_allow_html=True)
+st.markdown("""
+<style>
+[data-testid="stSidebar"] { background-color: #000000; border-right: 1px solid #1A1A1A; }
+.stApp { background-color: #000000; color: #F4F1EB; font-family: 'Inter', sans-serif; }
+h1, h2, h3, .bebas-header { font-family: 'Bebas Neue', cursive !important; text-transform: uppercase !important; letter-spacing: 2px !important; color: #F2B01E !important; }
+div.stButton > button { background-color: #F2B01E !important; color: #000000 !important; font-family: 'Bebas Neue' !important; font-size: 16px !important; border-radius: 4px !important; height: 50px; width: 100%; }
+.action-card { background-color: #0A0A0A; border: 1px solid #1A1A1A; border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+</style>
+""", unsafe_allow_html=True)
 
-menu = st.sidebar.radio("NAVIGATE", ["The Hub", "Routing", "Finance", "Gear"])
+# --- 3. SPLASH SCREEN ---
+if "splash_done" not in st.session_state:
+    st.markdown("<div style='text-align: center; padding-top: 150px;'><h1>ROCK & ROLLA'S</h1><p style='color:#F2B01E; letter-spacing:10px;'>LIVE</p></div>", unsafe_allow_html=True)
+    if st.button("ENTER APP"):
+        st.session_state.splash_done = True
+        st.rerun()
+    st.stop()
 
-# --- 4. THE HUB (ARTISTS) ---
-if menu == "The Hub":
-    st.title("🎨 The Artist Hub")
-    
-    # Form to add a new artist
-    with st.expander("➕ Add New Artist"):
-        artist_name = st.text_input("Artist Name")
-        if st.button("Create Hub"):
-            if artist_name:
-                supabase.table("artists").insert({"name": artist_name}).execute()
-                st.success(f"Hub created for {artist_name}!")
-                st.rerun()
+# Initialize Navigation
+if "current_page" not in st.session_state:
+    st.session_state.current_page = "Home"
 
-    st.divider()
-    
-    # List existing artists from Supabase
-    st.subheader("Your Artists")
-    artists_resp = supabase.table("artists").select("*").execute()
-    
-    if artists_resp.data:
+# --- 4. NAVIGATION LOGIC ---
+# (Home and Calendar code goes here - keeping it exactly like your streamlit.py)
+
+# --- 5. THE ARTIST HUB (Replacing old "Tours") ---
+if st.session_state.current_page == "Tours":
+    if "active_artist_id" not in st.session_state:
+        st.title("THE ARTIST HUB")
+        
+        # Pull Artists from Supabase
+        artists_resp = supabase.table("artists").select("*").execute()
+        
         for artist in artists_resp.data:
-            st.button(f"📂 {artist['name']}", key=artist['id'])
+            if st.button(f"📂 {artist['name'].upper()}", key=f"art_{artist['id']}"):
+                st.session_state.active_artist_id = artist['id']
+                st.session_state.active_artist_name = artist['name']
+                st.rerun()
+                
+    elif "active_tour_id" not in st.session_state:
+        # Show Projects for the selected Artist
+        st.subheader(f"PROJECTS: {st.session_state.active_artist_name}")
+        if st.button("← BACK TO HUB"):
+            del st.session_state.active_artist_id; st.rerun()
+            
+        # Mocking the Tour selection for now
+        if st.button("THEATER TOUR '26"):
+            st.session_state.active_tour_id = "TT26"
+            st.rerun()
+            
     else:
-        st.info("No artists found. Add your first one above!")
+        # OPEN THE 10 FOLDERS (Finance, Crew, etc.)
+        st.title(st.session_state.active_artist_name)
+        if st.button("← EXIT PROJECT"):
+            del st.session_state.active_tour_id; st.rerun()
+            
+        tabs = st.tabs(["DASHBOARD", "LOG", "FINANCE", "LOGISTICS", "CREW", "MERCH", "PRODUCTION", "VIP", "SUPPORT", "GEAR"])
+        with tabs[0]:
+            st.write("Your Dashboard Code Goes Here...")
 
-# --- 5. OTHER SECTIONS (Placeholders for now) ---
-elif menu == "Routing":
-    st.title("🗺️ Routing & Shows")
-    st.info("This is where your Cities and Dates will live.")
-
-elif menu == "Finance":
-    st.title("💸 Tour Finance")
-    st.info("Deal memos and financial tracking coming soon.")
-
-elif menu == "Gear":
-    st.title("⚙️ Gear Inventory")
-    st.info("Inventory will sync to the Artist Hub from here.")
+# --- 6. BOTTOM NAV (Same as before) ---
+st.write("") 
+n1, n2, n3 = st.columns(3)
+if n1.button("🏠\nHOME"): st.session_state.current_page = "Home"; st.rerun()
+if n2.button("📅\nCAL"): st.session_state.current_page = "Calendar"; st.rerun()
+if n3.button("🎨\nHUB"): st.session_state.current_page = "Tours"; st.rerun()
