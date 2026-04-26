@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+streamlit
+requests
+pandas
+fpdf2
+xlsxwriter
+streamlit-calendar
+openpyxl
